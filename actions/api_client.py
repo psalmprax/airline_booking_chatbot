@@ -406,8 +406,12 @@ class AeroDataApiClient(BaseFlightApiClient):
         departure_city: str,
         departure_date: str,
         destination_city: Optional[str] = None,
-        # ... other parameters ...
-        **kwargs
+        return_date: Optional[str] = None,
+        passengers: int = 1,
+        seat_preference: Optional[str] = None,
+        preferred_airline: Optional[str] = None,
+        frequent_flyer_number: Optional[str] = None,
+        destinations: Optional[List[str]] = None,
     ) -> Optional[List[Dict[str, Any]]]:
         if not self.api_key:
             logger.error("AERODATA_API_KEY not set. Cannot search.")

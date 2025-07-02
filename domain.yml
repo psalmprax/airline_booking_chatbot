@@ -112,8 +112,7 @@ slots:
     - type: from_entity
       entity: booking_trip_type
   number_of_passengers:
-    type: float # Changed to float to allow min_value to work
-    min_value: 1.0
+    type: text
     mappings:
     - type: from_entity
       entity: number_of_passengers

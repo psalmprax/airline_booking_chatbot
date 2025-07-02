@@ -2,17 +2,11 @@ version: '3.8'
 
 services:
   rasa:
-    image: rasa/rasa:3.6.13-full
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "5005:5005"
-    volumes:
-      - ./:/app
-    command: >
-      rasa run
-        --enable-api
-        --cors "*" # In a real production setup, restrict this to your frontend's domain
-        --endpoints endpoints.yml
-        --credentials credentials.yml
     depends_on:
       db:
         condition: service_healthy

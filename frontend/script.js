@@ -293,6 +293,10 @@ function startRename(event, conversationId) {
     renameBtn.style.display = 'none';
     deleteBtn.style.display = 'none';
 
+    // Create the container for the input and buttons
+    const container = document.createElement('div');
+    container.classList.add('rename-container');
+
     // Create and configure the input field
     const input = document.createElement('input');
     input.type = 'text';
@@ -313,14 +317,32 @@ function startRename(event, conversationId) {
         renderHistorySidebar(); // Re-render to restore the original state
     };
 
-    input.addEventListener('blur', () => finishRename(true));
+    // Create confirm button (checkmark)
+    const confirmBtn = document.createElement('button');
+    confirmBtn.classList.add('rename-action-btn');
+    confirmBtn.title = 'Confirm';
+    confirmBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z"/></svg>`;
+    confirmBtn.addEventListener('click', () => finishRename(true));
+
+    // Create cancel button (x)
+    const cancelBtn = document.createElement('button');
+    cancelBtn.classList.add('rename-action-btn');
+    cancelBtn.title = 'Cancel';
+    cancelBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06z"/></svg>`;
+    cancelBtn.addEventListener('click', () => finishRename(false));
+
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); finishRename(true); } 
         else if (e.key === 'Escape') { finishRename(false); }
     });
 
-    // Add the input to the DOM and focus it
-    listItem.prepend(input);
+    // Add elements to the container
+    container.appendChild(input);
+    container.appendChild(confirmBtn);
+    container.appendChild(cancelBtn);
+
+    // Add the container to the DOM and focus the input
+    listItem.prepend(container);
     input.focus();
     input.select();
 }

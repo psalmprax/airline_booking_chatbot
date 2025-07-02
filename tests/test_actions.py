@@ -969,3 +969,29 @@ def test_action_handle_correction_multi_city(mocker):
     assert SlotSet("destinations", ["Paris", "Berlin"]) in events
     assert SlotSet("destinations_iata", ["CDG", "BER"]) in events
     assert FollowupAction("action_review_and_confirm") in events
+
+def test_action_handle_correction_date(mocker):
+    """Tests that correcting a date entity is handled correctly."""
+    action = ActionHandleCorrection()
+    dispatcher = CollectingDispatcher()
+    tracker = Tracker.from_dict({
+        "slots": {
+            "departure_date": "2025-03-10"
+        },
+        "latest_message": {
+            "intent": {"name": "correct_info"},
+            "entities": [{"entity": "departure_date", "value": "March 11th 2025"}]
+        }
+    })
+
+    # Mock the validator and its method
+    mock_validator = mocker.patch('actions.actions.ValidateFlightBookingForm', autospec=True).return_value
+    mock_validator.validate_departure_date.return_value = {
+        "departure_date": "2025-03-11"
+    }
+
+    events = action.run(dispatcher, tracker, {})
+
+    assert SlotSet("departure_date", "2025-03-11") in events
+    assert FollowupAction("action_review_and_confirm") in events
+    mock_validator.validate_departure_date.assert_called_once()
