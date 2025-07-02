@@ -35,3 +35,8 @@ services:
     ports:
       # Expose the AMQP port to the host for local testing if needed
       - "5672:5672"
+
+  web_ui:
+    volumes:
+      # Mount the frontend directory for live-reloading of UI code
+      - ./frontend:/usr/share/nginx/html
