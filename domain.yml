@@ -1,0 +1,224 @@
+version: "3.1"
+
+intents:
+  - greet
+  - goodbye
+  - book_flight
+  - inform
+  - flexible_search
+  - check_flight_status
+  - select_flight
+  - store_preference
+  - stop
+  - affirm
+  - delete_preference
+  - help
+  - select_airport
+  - confirm_cancellation
+  - deny_cancellation
+  - confirm_details
+  - deny_details
+  - correct_info
+  - deny
+  - nlu_fallback
+  - bot_challenge
+
+entities:
+  - city
+  - departure_date
+  - requested_slot
+  - return_date
+  - budget
+  - flight_id
+  - trip_type
+  - seat_preference
+  - booking_trip_type
+  - number_of_passengers
+  - airline
+  - frequent_flyer_number
+  - selected_iata_code
+
+slots:
+  departure_city:
+    type: text
+    mappings:
+    - type: from_entity
+      entity: city
+      role: departure
+  departure_city_iata:
+    type: text
+    influence_conversation: false
+    mappings: []
+  destination_city:
+    type: text
+    mappings: # Maps from the entity with the 'initial' role
+    - type: from_entity
+      entity: city
+      role: destination
+  destination_city_iata:
+    type: text
+    influence_conversation: false
+    mappings: []
+  departure_date:
+    type: text
+    mappings:
+    - type: from_entity
+      entity: departure_date
+  return_date:
+    type: text
+    mappings:
+    - type: from_entity
+      entity: return_date
+  destinations:
+    type: list
+    influence_conversation: false
+    mappings: [] # This will be filled by custom actions
+  next_destination:
+    type: text # This slot will now be filled by the 'subsequent' role
+    influence_conversation: false
+    mappings:
+    - type: from_entity
+      entity: city
+      role: destination_subsequent
+  add_more_destinations:
+    type: bool
+    mappings:
+    - type: from_intent
+      intent: affirm
+      value: True
+    - type: from_intent
+      intent: deny
+      value: False
+  destinations_iata:
+    type: list
+    mappings: [] # Filled by custom action
+  ambiguous_city_name:
+    type: text
+    influence_conversation: false
+    mappings: []
+  ambiguous_city_slot:
+    type: text
+    influence_conversation: false
+    mappings: []
+  selected_iata_code:
+    type: text
+    mappings:
+    - type: from_entity
+      entity: selected_iata_code
+  booking_trip_type:
+    type: categorical
+    values: [one-way, round trip, multi-city]
+    mappings:
+    - type: from_entity
+      entity: booking_trip_type
+  number_of_passengers:
+    type: float # Changed to float to allow min_value to work
+    min_value: 1.0
+    mappings:
+    - type: from_entity
+      entity: number_of_passengers
+  preferred_airline:
+    type: text
+    mappings:
+    - type: from_entity
+      entity: airline
+  frequent_flyer_number:
+    type: text
+    mappings:
+    - type: from_entity
+      entity: frequent_flyer_number
+  requested_slot:
+    type: text
+    mappings:
+    - type: from_trigger_intent
+      value: null
+      intent: null
+  cancellation_pending:
+    type: bool
+    influence_conversation: false
+    mappings: []
+
+responses:
+  utter_greet:
+  - text: "Hello! I am your personal airline assistant. You can ask me to book a flight or find destinations. How can I help?"
+  utter_goodbye:
+  - text: "Goodbye! Have a great day."
+  utter_ask_departure_city:
+  - text: "Where would you like to fly from?"
+  utter_ask_destination_city:
+  - text: "Where are you flying to?"
+  utter_ask_departure_date:
+  - text: "When would you like to depart?"
+  utter_ask_return_date:
+  - text: "And when would you like to return?"
+  utter_ask_next_destination:
+  - text: "Where would you like to go next?"
+  utter_ask_add_more_destinations:
+  - text: "Would you like to add another destination to your trip?"
+  utter_ask_booking_trip_type:
+  - text: "Will this be a one-way or a round trip flight?"
+  utter_ask_number_of_passengers:
+  - text: "How many passengers will be flying?"
+  utter_ask_preferred_airline:
+  - text: "Do you have a preferred airline?"
+  utter_ask_frequent_flyer_number:
+  - text: "Do you have a frequent flyer number you'd like to use?"
+  utter_booking_confirmed:
+  - text: "Your booking is confirmed! You will receive an email with the details shortly."
+  utter_ask_flight_id:
+  - text: "What is the flight ID you want to check?"
+  utter_ok_cancelled:
+  - text: "Okay, I've cancelled the process."
+  utter_ask_confirm_cancellation:
+  - text: "Are you sure you want to cancel the booking process?"
+  utter_ask_confirm_details:
+  - text: "Okay, let's review. I have you down for {summary}. Is that correct?"
+  utter_ask_for_correction:
+  - text: "My mistake. What should I change?"
+  utter_resume_booking:
+  - text: "Okay, let's continue where we left off."
+  utter_form_summary_sentence:
+  - text: "Okay, let's continue. So far, I have you down for {summary}."
+  utter_anything_else:
+  - text: "Okay. Is there anything else I can help you with?"
+  utter_help:
+  - text: |
+      I can help you with the following:
+      - Booking one-way, round trip, or multi-city flights.
+      - Checking the status of a flight.
+      - Finding flexible travel options.
+      Just say something like "book a flight" or "what's the status of flight AA123?".
+  utter_out_of_scope:
+  - text: "I'm sorry, I'm not sure how to help with that. You can ask me to book a flight or check a flight status."
+  utter_handle_challenge:
+  - text: "I am a bot, but I'm doing my best to help!"
+  utter_please_rephrase:
+  - text: "I'm sorry, I didn't quite understand that. Let's try again."
+  utter_preference_deleted:
+  - text: "Okay, I've deleted your stored seat preference."
+  utter_no_preference_to_delete:
+  - text: "It looks like you don't have a seat preference saved with me."
+  utter_clarify_airport:
+  - text: "I found multiple airports for {ambiguous_city_name}. Please choose one:"
+  utter_api_failure:
+  - text: "I'm sorry, I'm having trouble connecting to the flight search service right now. Please try again in a few moments."
+
+actions:
+  - action_flexible_search
+  - action_search_flights
+  - validate_flight_booking_form
+  - action_set_flight_and_ask_confirm
+  - action_confirm_booking
+  - action_flight_status
+  - action_store_preference
+  - action_delete_preference
+  - action_cancel_booking
+  - action_ask_confirm_cancellation
+  - action_resume_booking
+  - action_handle_correction
+  - action_review_and_confirm
+  - action_set_airport_from_clarification
+
+forms:
+  flight_booking_form:
+    required_slots: [] # We will define this dynamically in actions.py

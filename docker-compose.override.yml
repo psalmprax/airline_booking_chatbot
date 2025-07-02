@@ -1,0 +1,37 @@
+version: '3.8'
+
+# This file contains development-specific overrides.
+# It is automatically merged with docker-compose.yml when you run `docker-compose up`.
+
+services:
+  rasa:
+    volumes:
+      # Mount the whole project to allow for live-reloading of models and data
+      - ./:/app
+    command: >
+      rasa run
+        --enable-api
+        --cors "*"
+        --debug # Enable debug mode for more verbose logging
+        --endpoints endpoints.yml
+        --credentials credentials.yml
+
+  action_server:
+    volumes:
+      # Mount the actions directory to allow for live-reloading of action code
+      - ./actions:/app/actions
+
+  db:
+    ports:
+      # Expose the DB port to the host for easier debugging with a DB client
+      - "5432:5432"
+
+  redis:
+    ports:
+      # Expose the Redis port to the host for easier debugging
+      - "6379:6379"
+
+  rabbitmq:
+    ports:
+      # Expose the AMQP port to the host for local testing if needed
+      - "5672:5672"

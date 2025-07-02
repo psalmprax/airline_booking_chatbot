@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  rasa:
+    image: rasa/rasa:3.6.13-full
+    ports:
+      - "5005:5005"
+    volumes:
+      - ./:/app
+    command: >
+      rasa run
+        --enable-api
+        --cors "*" # In a real production setup, restrict this to your frontend's domain
+        --endpoints endpoints.yml
+        --credentials credentials.yml
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      action_server:
+        condition: service_started
+
+  action_server:
+    build: ./actions
+    ports:
+      - "5055:5055"
+    env_file:
+      - .env
+
+  db:
+    image: postgres:14.1
+    restart: always
+    # No need to expose the port to the host in a production network
+    # ports:
+    #   - "5432:5432"
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.0
+    # No need to expose the port to the host in a production network
+    # ports:
+    #   - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.9-management
+    ports:
+      - "15672:15672" # Expose management UI for monitoring
+    environment:
+      - RABBITMQ_DEFAULT_USER=user
+      - RABBITMQ_DEFAULT_PASS=password
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 15s
+      retries: 5
+
+  web_ui:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+
+volumes:
+  postgres_data:

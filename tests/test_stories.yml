@@ -1,0 +1,614 @@
+version: "3.1"
+
+stories:
+- story: Test flight status check
+  steps:
+  - user: "what is the status of flight AA123"
+    intent: check_flight_status
+    entities:
+    - flight_id: "AA123"
+  - action: action_flight_status
+  - bot: "Checking status for flight AA123..."
+  - bot: "Flight AA123 is on time. It will depart at 11:30."
+
+- story: Test storing a user preference
+  steps:
+  - user: "please remember I always prefer a window seat"
+    intent: store_preference
+    entities:
+    - seat_preference: "window"
+  - action: action_store_preference
+  - bot: "Great! I've saved your preference for a window seat for future bookings."
+
+- story: Test multi-city booking flow
+  steps:
+  # 1. User starts the booking
+  - user: "I want to book a multi-city trip from London"
+    intent: book_flight
+    entities:
+    - booking_trip_type: "multi-city"
+    - city: "London"
+      role: "departure"
+  # 2. Form activates and asks for the first destination
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Where would you like to go next?"
+  # 3. User provides first destination
+  - user: "after that, fly to Paris"
+    intent: inform
+    entities:
+    - city: "Paris"
+      role: "destination_subsequent"
+  # 4. Form validates and asks to add more
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Would you like to add another destination to your trip?"
+  # 5. User affirms
+  - user: "yes add another"
+    intent: affirm
+  # 6. Form validates and asks for next destination
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Where would you like to go next?"
+  # 7. User provides second destination
+  - user: "then to Berlin"
+    intent: inform
+    entities:
+    - city: "Berlin"
+      role: "destination_subsequent"
+  # 8. Form validates and asks to add more
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Would you like to add another destination to your trip?"
+  # 9. User denies
+  - user: "no that's all"
+    intent: deny
+  # 10. Form validates, asks for departure date
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "When would you like to depart?"
+  # 11. User provides date
+  - user: "on February 1st 2025"
+    intent: inform
+    entities:
+    - departure_date: "February 1st 2025"
+  # 12. Form validates, asks for passengers
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "How many passengers will be flying?"
+  # 13. User provides passengers
+  - user: "2 people"
+    intent: inform
+    entities:
+    - number_of_passengers: "2"
+  # 14. Form validates, deactivates, and searches
+  - action: flight_booking_form
+  - active_loop: null
+  # 15. Bot asks for confirmation
+  - action: action_review_and_confirm
+  - bot: "Okay, let's review. I have you down for a multi-city trip for 2 passenger(s) from London to Paris -> Berlin departing on 2025-02-01. Is that correct?"
+  # 16. User confirms
+  - user: "yes, that's correct"
+    intent: confirm_details
+  # 17. Bot searches for flights
+  - action: action_search_flights
+  - bot: "Okay! Searching for a multi-city trip for 2 passenger(s) along the route: London -> Paris -> Berlin, starting on 2025-02-01."
+  - bot: "Multi-city searches are complex. For this demo, I can't show you the results directly, but I have all the details for the search!"
+
+- story: Test full one-way booking flow with selection and confirmation
+  steps:
+  # 1. User provides all info upfront
+  - user: "I want to book a one-way flight from New York to London for February 10th 2025 for 1 person"
+    intent: book_flight
+    entities:
+    - booking_trip_type: "one-way"
+    - city: "New York"
+      role: "departure"
+    - city: "London"
+      role: "destination"
+    - departure_date: "February 10th 2025"
+    - number_of_passengers: "1"
+  # 2. Form fills and search action runs
+  - action: flight_booking_form
+  - active_loop: null
+  # 3. Bot asks for confirmation
+  - action: action_review_and_confirm
+  - bot: "Okay, let's review. I have you down for a one-way trip for 1 passenger(s) from New York to London departing on 2025-02-10. Is that correct?"
+  # 4. User confirms
+  - user: "yes, looks good"
+    intent: confirm_details
+  # 5. Bot searches for flights
+  - action: action_search_flights
+  - bot: "Okay! Searching for one-way flights for 1 passenger(s) from New York to London for 2025-02-10."
+  - bot: "Here are some flights I found:"
+  # 6. User selects a flight
+  - user: "I'll take flight FH456"
+    intent: select_flight
+    entities:
+    - flight_id: "FH456"
+  # 7. Bot asks for booking confirmation
+  - action: action_set_flight_and_ask_confirm
+  - bot: "You've selected flight FH456. Shall I go ahead and book it?"
+  # 8. User confirms the booking
+  - user: "yes, book it"
+    intent: confirm_booking
+  # 9. Bot confirms the final booking
+  - action: action_confirm_booking
+  - bot: "Your booking is confirmed! You will receive an email with the details shortly."
+
+- story: Test user corrects details after review
+  steps:
+  - user: "I want to book a one-way flight from New York to London"
+    intent: book_flight
+  - action: flight_booking_form
+  - active_loop: null
+  - action: action_review_and_confirm
+  - bot: "Okay, let's review. I have you down for a one-way trip from New York to London. Is that correct?"
+  - user: "no, that's wrong"
+    intent: deny_details
+  - action: utter_ask_for_correction
+  - bot: "My mistake. What should I change?"
+  - user: "change the destination to Berlin"
+    intent: correct_info
+    entities:
+    - city: "Berlin"
+      role: "destination"
+  - action: action_handle_correction
+  - action: action_review_and_confirm
+  - bot: "Okay, let's review. I have you down for a one-way trip from New York to Berlin. Is that correct?"
+
+- story: Test user corrects multi-city destination after review
+  steps:
+  - user: "I want to book a multi-city trip from London to Paris"
+    intent: book_flight
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Would you like to add another destination to your trip?"
+  - user: "no"
+    intent: deny
+  - action: flight_booking_form
+  - active_loop: null
+  - action: action_review_and_confirm
+  - bot: "Okay, let's review. I have you down for a multi-city trip from London to Paris. Is that correct?"
+  - user: "no, that's wrong"
+    intent: deny_details
+  - action: utter_ask_for_correction
+  - bot: "My mistake. What should I change?"
+  - user: "the destination should be Berlin"
+    intent: correct_info
+  - action: action_handle_correction
+  - action: action_review_and_confirm
+  - bot: "Okay, let's review. I have you down for a multi-city trip from London to Berlin. Is that correct?"
+
+- story: Test user changes mind about departure city mid-form
+  steps:
+  # 1. User starts booking
+  - user: "I want to book a flight from Paris"
+    intent: book_flight
+    entities:
+    - city: "Paris"
+      role: "departure"
+  # 2. Form activates, asks for destination
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Where are you flying to?"
+  # 3. User provides destination
+  - user: "to Berlin"
+    intent: inform
+    entities:
+    - city: "Berlin"
+      role: "destination"
+  # 4. Form validates, asks for date
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "When would you like to depart?"
+  # 5. User changes mind about departure city
+  - user: "actually I want to leave from London"
+    intent: inform
+    entities:
+    - city: "London"
+      role: "departure"
+  # 6. Form validates the new departure city and re-asks for the destination
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Where are you flying to?"
+
+- story: Test user corrects departure date mid-form
+  steps:
+  - user: "I want to book a flight from Paris to Berlin for Feb 1st 2025"
+    intent: book_flight
+    entities:
+    - city: "Paris"
+      role: "departure"
+    - city: "Berlin"
+      role: "destination"
+    - departure_date: "Feb 1st 2025"
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Will this be a one-way or a round trip flight?"
+  - user: "actually, let's make that Feb 2nd 2025"
+    intent: inform
+    entities:
+    - departure_date: "Feb 2nd 2025"
+  - action: flight_booking_form
+  - bot: "Okay, I've updated the departure date to 2025-02-02."
+  - active_loop: flight_booking_form
+  - bot: "Will this be a one-way or a round trip flight?"
+
+- story: Test goodbye rule
+  steps:
+  - user: "bye"
+    intent: goodbye
+  - action: utter_goodbye
+  - bot: "Goodbye! Have a great day."
+
+- story: Test stop rule outside of a form
+  steps:
+  - user: "nevermind"
+    intent: stop
+  - action: utter_anything_else
+  - bot: "Okay. Is there anything else I can help you with?"
+
+- story: Test stop rule inside a form
+  steps:
+  - user: "I want to book a flight"
+    intent: book_flight
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Will this be a one-way or a round trip flight?"
+  - user: "cancel"
+    intent: stop
+  - action: action_ask_confirm_cancellation
+  - bot: "Are you sure you want to cancel the booking process?"
+  - user: "yes"
+    intent: confirm_cancellation
+  - action: action_cancel_booking
+  - active_loop: null
+  - bot: "Okay, I've cancelled the process."
+
+- story: Test user denies cancellation mid-form
+  steps:
+  - user: "I want to book a flight"
+    intent: book_flight
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Will this be a one-way or a round trip flight?"
+  - user: "cancel"
+    intent: stop
+  - action: action_ask_confirm_cancellation
+  - bot: "Are you sure you want to cancel the booking process?"
+  - user: "no"
+    intent: deny_cancellation
+  - action: action_resume_booking
+  - bot: "Okay, let's continue where we left off."
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Will this be a one-way or a round trip flight?"
+
+- story: Test user denies cancellation with filled slots
+  steps:
+  - user: "I want to book a one-way flight from London"
+    intent: book_flight
+    entities:
+    - booking_trip_type: "one-way"
+    - city: "London"
+      role: "departure"
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Where are you flying to?"
+  - user: "stop"
+    intent: stop
+  - action: action_ask_confirm_cancellation
+  - bot: "Are you sure you want to cancel the booking process?"
+  - user: "no, don't cancel"
+    intent: deny_cancellation
+  - action: action_resume_booking
+  - bot: "Okay, let's continue. So far, I have you down for a one-way trip from London."
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Where are you flying to?"
+
+- story: Test help rule
+  steps:
+  - user: "what can you do?"
+    intent: help
+  - action: utter_help
+  - bot: |
+      I can help you with the following:
+      - Booking one-way, round trip, or multi-city flights.
+      - Checking the status of a flight.
+      - Finding flexible travel options.
+      Just say something like "book a flight" or "what's the status of flight AA123?".
+
+- story: Test greet and book flight in one turn
+  steps:
+  - user: "hello, book a flight for me"
+    intents:
+    - greet
+    - book_flight
+  - action: utter_greet
+  - bot: "Hello! I am your personal airline assistant. You can ask me to book a flight or find destinations. How can I help?"
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Will this be a one-way or a round trip flight?"
+
+- story: Test user asks for help mid-form
+  steps:
+  # 1. User starts booking
+  - user: "I want to book a flight from London"
+    intent: book_flight
+    entities:
+    - city: "London"
+      role: "departure"
+  # 2. Form activates, asks for destination
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Where are you flying to?"
+  # 3. User asks for help
+  - user: "help"
+    intent: help
+  # 4. Bot provides help message
+  - action: utter_help
+  - bot: "I can help you with the following:\n- Booking one-way, round trip, or multi-city flights.\n- Checking the status of a flight.\n- Finding flexible travel options.\nJust say something like \"book a flight\" or \"what's the status of flight AA123?\"."
+  # 5. Form resumes and re-asks for the destination
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Where are you flying to?"
+
+- story: Test user says goodbye mid-form
+  steps:
+  # 1. User starts booking
+  - user: "I want to book a flight"
+    intent: book_flight
+  # 2. Form activates, asks for trip type
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Will this be a one-way or a round trip flight?"
+  # 3. User says goodbye
+  - user: "bye"
+    intent: goodbye
+  # 4. Bot deactivates form and says goodbye
+  - action: action_deactivate_loop
+  - active_loop: null
+  - action: utter_goodbye
+  - bot: "Goodbye! Have a great day."
+
+- story: Test user asks for help and provides info mid-form
+  steps:
+  # 1. User starts booking
+  - user: "I want to book a flight from London"
+    intent: book_flight
+    entities:
+    - city: "London"
+      role: "departure"
+  # 2. Form activates, asks for destination
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Where are you flying to?"
+  # 3. User asks for help and provides the destination city
+  - user: "what can you do? I want to go to Paris"
+    intents:
+    - help
+    - inform
+    entities:
+    - city: "Paris"
+      role: "destination"
+  # 4. Bot provides help message
+  - action: utter_help
+  - bot: "I can help you with the following:\n- Booking one-way, round trip, or multi-city flights.\n- Checking the status of a flight.\n- Finding flexible travel options.\nJust say something like \"book a flight\" or \"what's the status of flight AA123?\"."
+  # 5. Form processes the provided info and asks for the next slot
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "When would you like to depart?"
+
+- story: Test user asks out-of-scope question mid-form
+  steps:
+  # 1. User starts booking
+  - user: "I want to book a flight"
+    intent: book_flight
+  # 2. Form activates, asks for trip type
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Will this be a one-way or a round trip flight?"
+  # 3. User asks an out-of-scope question
+  - user: "can you order a pizza for me"
+    intent: nlu_fallback
+  # 4. Bot provides out-of-scope message
+  - action: utter_out_of_scope
+  - bot: "I'm sorry, I'm not sure how to help with that. You can ask me to book a flight or check a flight status."
+  # 5. Form resumes and re-asks for the trip type
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Will this be a one-way or a round trip flight?"
+
+- story: Test user provides preferred airline in first turn
+  steps:
+  # 1. User starts booking, providing airline preference upfront
+  - user: "I want to book a flight from New York to London on AwesomeAirlines"
+    intent: book_flight
+    entities:
+    - city: "New York"
+      role: "departure"
+    - city: "London"
+      role: "destination"
+    - airline: "AwesomeAirlines"
+  # 2. Form activates and asks for the next required slot (trip type)
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Will this be a one-way or a round trip flight?"
+
+- story: Test user provides frequent flyer number in first turn
+  steps:
+  # 1. User starts booking, providing FF# upfront
+  - user: "I want to book a flight from New York to London, my number is AA12345678"
+    intent: book_flight
+    entities:
+    - city: "New York"
+      role: "departure"
+    - city: "London"
+      role: "destination"
+    - frequent_flyer_number: "AA12345678"
+  # 2. Form activates and asks for the next required slot (trip type)
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Will this be a one-way or a round trip flight?"
+
+- story: Test user provides airline and frequent flyer number in first turn
+  steps:
+  # 1. User starts booking, providing airline and FF# upfront
+  - user: "I want to book a flight from New York to London on AwesomeAirlines, my number is AA12345678"
+    intent: book_flight
+    entities:
+    - city: "New York"
+      role: "departure"
+    - city: "London"
+      role: "destination"
+    - airline: "AwesomeAirlines"
+    - frequent_flyer_number: "AA12345678"
+  # 2. Form activates and asks for the next required slot (trip type)
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Will this be a one-way or a round trip flight?"
+
+- story: Test form asks for frequent flyer number
+  steps:
+  - user: "I want to book a one-way flight from Paris to Berlin for next week on FlyHigh"
+    intent: book_flight
+    entities:
+    - booking_trip_type: "one-way"
+    - city: "Paris"
+      role: "departure"
+    - city: "Berlin"
+      role: "destination"
+    - departure_date: "next week"
+    - airline: "FlyHigh"
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Do you have a frequent flyer number you'd like to use?"
+  - user: "no"
+    intent: deny
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "How many passengers will be flying?"
+
+- story: Test user deletes preference mid-form
+  steps:
+  # 1. User starts booking
+  - user: "I want to book a flight"
+    intent: book_flight
+  # 2. Form activates, asks for trip type
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Will this be a one-way or a round trip flight?"
+  # 3. User asks to delete preference
+  - user: "forget my seat preference"
+    intent: delete_preference
+  # 4. Bot runs the action and confirms deletion
+  - action: action_delete_preference
+  - bot: "Okay, I've deleted your stored seat preference."
+  # 5. Form resumes and re-asks for the trip type
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Will this be a one-way or a round trip flight?"
+
+- story: Test user affirms unexpectedly mid-form
+  steps:
+  # 1. User starts booking
+  - user: "I want to book a flight"
+    intent: book_flight
+  # 2. Form activates, asks for trip type
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Will this be a one-way or a round trip flight?"
+  # 3. User unexpectedly affirms
+  - user: "yes"
+    intent: affirm
+  # 4. Bot asks for clarification
+  - action: utter_please_rephrase
+  - bot: "I'm sorry, I didn't quite understand that. Let's try again."
+  # 5. Form resumes and re-asks for the trip type
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Will this be a one-way or a round trip flight?"
+
+- story: Test user denies unexpectedly mid-form
+  steps:
+  # 1. User starts booking
+  - user: "I want to book a flight"
+    intent: book_flight
+  # 2. Form activates, asks for trip type
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Will this be a one-way or a round trip flight?"
+  # 3. User unexpectedly denies
+  - user: "no"
+    intent: deny
+  # 4. Bot asks for clarification
+  - action: utter_please_rephrase
+  - bot: "I'm sorry, I didn't quite understand that. Let's try again."
+  # 5. Form resumes and re-asks for the trip type
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Will this be a one-way or a round trip flight?"
+
+- story: Test bot challenge rule
+  steps:
+  - user: "you are dumb"
+    intent: bot_challenge
+  - action: utter_handle_challenge
+  - bot: "I am a bot, but I'm doing my best to help!"
+
+- story: Test user challenges bot mid-form
+  steps:
+  # 1. User starts booking
+  - user: "I want to book a flight"
+    intent: book_flight
+  # 2. Form activates, asks for trip type
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Will this be a one-way or a round trip flight?"
+  # 3. User challenges the bot
+  - user: "are you a robot?"
+    intent: bot_challenge
+  # 4. Bot provides the standard challenge response
+  - action: utter_handle_challenge
+  - bot: "I am a bot, but I'm doing my best to help!"
+  # 5. Form resumes and re-asks for the trip type
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Will this be a one-way or a round trip flight?"
+
+- story: Test form asks for preferred airline
+  steps:
+  - user: "I want to book a round trip from Paris to Berlin for next week, returning in two weeks"
+    intent: book_flight
+    entities:
+    - booking_trip_type: "round trip"
+    - city: "Paris"
+      role: "departure"
+    - city: "Berlin"
+      role: "destination"
+    - departure_date: "next week"
+    - return_date: "in two weeks"
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "Do you have a preferred airline?"
+  - user: "no thanks"
+    intent: deny
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - bot: "How many passengers will be flying?"
+
+- story: Test delete preference rule
+  steps:
+  - user: "forget my preference"
+    intent: delete_preference
+  - action: action_delete_preference
+  - bot: "Okay, I've deleted your stored seat preference."
+
+- story: Test out-of-scope rule
+  steps:
+  - user: "what's the weather like?"
+    intent: nlu_fallback
+  - action: utter_out_of_scope
+  - bot: "I'm sorry, I'm not sure how to help with that. You can ask me to book a flight or check a flight status."

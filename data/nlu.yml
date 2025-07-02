@@ -1,0 +1,172 @@
+version: "3.1"
+
+nlu:
+- lookup: city
+  examples: |
+    - data/lookups/cities.txt
+- lookup: airline
+  examples: |
+    - data/lookups/airlines.txt
+
+- intent: greet
+  examples: |
+    - hey
+    - hello
+    - hi
+
+- intent: goodbye
+  examples: |
+    - bye
+    - goodbye
+    - see you later
+
+- intent: book_flight
+  examples: |
+    - I want to book a flight
+    - book a flight from [New York](city){"role": "departure"} to [London](city){"role": "destination"}
+    - book a flight for [2](number_of_passengers) people
+    - find me a flight to [Tokyo](city){"role": "destination"}
+    - I need a [round trip](booking_trip_type) flight
+    - find me a [one-way](booking_trip_type) ticket to [Berlin](city){"role": "destination"}
+    - I want to book a [multi-city](booking_trip_type) trip
+    - I need a flight to [Berlin](city){"role": "destination"} for [three](number_of_passengers) passengers
+    - book a flight from [SFO](city){"role": "departure"}
+
+- intent: inform
+  examples: |
+    - from [Paris](city:departure)
+    - I want to go to [Berlin](city:destination)
+    - then to [Tokyo](city:destination_subsequent)
+    - after that, fly to [Paris](city:destination_subsequent)
+    - on [next Friday](departure_date)
+    - my budget is [500 dollars](budget)
+    - [round trip](booking_trip_type)
+    - [multi-city](booking_trip_type) please
+    - returning on [the 25th](return_date)
+    - I'll come back on [August 1st](return_date)
+    - [4](number_of_passengers) people
+    - just [1](number_of_passengers)
+    - I'd like to fly with [AwesomeAirlines](airline)
+    - preferably on [United](airline)
+    - my frequent flyer number is [AA12345678](frequent_flyer_number)
+
+- intent: flexible_search
+  examples: |
+    - find me a cheap flight to a [beach](trip_type) destination
+    - I want to go somewhere for an [adventure](trip_type) next month
+    - show me [city break](trip_type) options under [300](budget)
+
+- intent: store_preference
+  examples: |
+    - please remember I always prefer a [window](seat_preference) seat
+    - for future bookings, I like the [aisle](seat_preference)
+    - I'd like to fly [business class](seat_preference)
+    - can you note that I prefer [business class](seat_preference)?
+
+- intent: delete_preference
+  examples: |
+    - forget my seat preference
+    - delete my preference
+    - please remove my stored preference
+    - don't remember my seat preference anymore
+
+- intent: check_flight_status
+  examples: |
+    - what is the status of my flight?
+    - check flight status for [AA123](flight_id)
+    - is flight [SJ789](flight_id) on time?
+
+- intent: select_flight
+  examples: |
+    - I'll take flight [FH456](flight_id)
+    - select the first one
+
+- intent: confirm_booking
+  examples: |
+    - yes, confirm that please
+    - go ahead and confirm the booking
+    - please confirm it
+    - yes, book it
+
+- intent: select_airport
+  examples: |
+    - /select_airport{"selected_iata_code": "JFK"}
+    - /select_airport{"selected_iata_code": "LGA"}
+    - /select_airport{"selected_iata_code": "LHR"}
+    - /select_airport{"selected_iata_code": "LGW"}
+    - /select_airport{"selected_iata_code": "CDG"}
+
+- intent: confirm_cancellation
+  examples: |
+    - yes, cancel it
+    - that's right, please cancel
+    - go ahead and stop
+    - yep, cancel
+
+- intent: deny_cancellation
+  examples: |
+    - no, don't cancel
+    - actually, let's continue
+    - no, keep going with the booking
+    - don't stop
+
+- intent: confirm_details
+  examples: |
+    - yes, that's correct
+    - looks good
+    - yes, search for that
+    - correct
+
+- intent: deny_details
+  examples: |
+    - no, that's wrong
+    - that's not right
+    - no, let me start over
+
+- intent: correct_info
+  examples: |
+    - actually, the date is [March 11th 2025](departure_date)
+    - no, I want to fly from [Berlin](city:departure)
+    - change the destination to [Tokyo](city:destination)
+    - can you change the number of passengers to [2](number_of_passengers)?
+    - the return date should be [next month](return_date)
+
+- intent: affirm
+  examples: |
+    - yes
+    - indeed
+    - correct
+    - add another
+
+- intent: deny
+  examples: |
+    - no
+    - that's all
+    - no thanks
+    - I'm done
+
+- intent: help
+  examples: |
+    - help
+    - what can you do?
+    - can you help me?
+
+- intent: bot_challenge
+  examples: |
+    - you are a bot
+    - are you a robot?
+    - you're dumb
+    - that's a stupid answer
+
+- synonym: San Francisco
+  examples: |
+    - SFO
+    - San Fran
+
+- regex: flight_id
+  examples: |
+    - \b[A-Z]{2}\d{3,4}\b
+
+- regex: frequent_flyer_number
+  examples: |
+    - \b[A-Z]{2}\d{8}\b

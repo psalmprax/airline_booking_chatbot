@@ -1,0 +1,30 @@
+# This file defines the NLU pipeline and dialogue policies for your assistant.
+recipe: default.v1
+language: en
+
+pipeline:
+  # See https://rasa.com/docs/rasa/tuning-your-model for more information.
+  - name: WhitespaceTokenizer
+  - name: RegexFeaturizer
+  - name: LexicalSyntacticFeaturizer
+  - name: CountVectorsFeaturizer
+  - name: CountVectorsFeaturizer
+    analyzer: char_wb
+    min_ngram: 1
+    max_ngram: 4
+  - name: DIETClassifier
+    epochs: 100
+  - name: EntitySynonymMapper
+  - name: ResponseSelector
+    epochs: 100
+  - name: FallbackClassifier
+    threshold: 0.7
+    ambiguity_threshold: 0.1
+
+policies:
+  # See https://rasa.com/docs/rasa/policies for more information.
+  - name: MemoizationPolicy
+  - name: RulePolicy
+  - name: UnexpecTEDIntentPolicy
+    max_history: 5
+    epochs: 100

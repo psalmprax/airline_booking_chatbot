@@ -1,0 +1,4 @@
+# Development and testing libraries
+pytest
+pytest-mock
+psycopg2-binary

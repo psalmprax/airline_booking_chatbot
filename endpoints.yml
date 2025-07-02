@@ -1,0 +1,23 @@
+# This file contains the configurations for the Rasa services.
+# For a production deployment with Rasa Pro, you would point these
+# to your deployed Rasa Pro services.
+
+# Action server endpoint
+action_endpoint:
+  url: "http://action_server:5055/webhook"
+
+# Tracker store configuration
+# This tells Rasa to store conversation trackers in Redis.
+tracker_store:
+  type: redis
+  url: redis
+  port: 6379
+  db: 0
+
+# Event broker for Rasa Pro.
+# This sends all conversation events to a RabbitMQ queue.
+event_broker:
+  type: "pika"
+  url: "rabbitmq" # The service name from docker-compose.yml
+  username: "user"
+  password: "password"

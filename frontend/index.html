@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Airline Booking Chatbot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --bg-primary: #f8f9fa;
+            --bg-secondary: #fff;
+            --bg-tertiary: #f0f2f5;
+            --bg-input: #f1f1f1;
+            --bg-hover: #e9e9eb;
+            --bg-hover-subtle: rgba(0,0,0,0.1);
+            
+            --text-primary: #333;
+            --text-secondary: #888;
+            --text-on-accent: #fff;
+            --text-disabled: #aaa;
+
+            --border-color: #e0e0e0;
+            --border-color-disabled: #ddd;
+
+            --accent-primary: #007bff;
+            --accent-secondary: #0056b3;
+            --accent-bg-light: #e7f1ff;
+            --accent-border-light: #cce0ff;
+            --accent-hover-light: #cce0ff;
+            --accent-text-light: #004494;
+
+            --user-msg-bg: linear-gradient(to right, #007bff, #0056b3);
+            --bot-msg-bg: #f1f1f1;
+
+            --danger-bg: #dc3545;
+            --modal-overlay-bg: rgba(0, 0, 0, 0.6);
+            --shadow-color: rgba(0,0,0,0.1);
+        }
+
+        body.dark-mode {
+            --bg-primary: #121212;
+            --bg-secondary: #1e1e1e;
+            --bg-tertiary: #2a2a2a;
+            --bg-input: #333;
+            --bg-hover: #3a3a3a;
+            --bg-hover-subtle: rgba(255,255,255,0.1);
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --text-disabled: #666;
+            --border-color: #3a3a3a;
+            --border-color-disabled: #444;
+            --accent-primary: #4dabf7;
+            --accent-secondary: #1c7ed6;
+            --accent-bg-light: #2c3e50;
+            --accent-border-light: #34495e;
+            --accent-hover-light: #34495e;
+            --accent-text-light: #74c0fc;
+            --user-msg-bg: linear-gradient(to right, #4dabf7, #1c7ed6);
+            --bot-msg-bg: #333;
+            --danger-bg: #e03131;
+            --modal-overlay-bg: rgba(0, 0, 0, 0.7);
+            --shadow-color: rgba(0,0,0,0.4);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-primary);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .app-container {
+            display: flex;
+            width: 700px; /* Wider to accommodate sidebar */
+            height: 600px;
+            max-width: 95%;
+            box-shadow: 0 4px 12px var(--shadow-color);
+            border-radius: 10px;
+            overflow: hidden; /* To keep rounded corners */
+            background-color: var(--bg-secondary);
+        }
+        .history-sidebar {
+            width: 200px;
+            background-color: var(--bg-tertiary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        .history-header {
+            padding: 10px 0;
+            margin-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        #new-chat-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background-color 0.2s;
+        }
+        #new-chat-btn .btn-content {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        #new-chat-btn:hover {
+            background-color: var(--bg-primary);
+        }
+        #history-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+        .history-item {
+            padding: 12px 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            transition: background-color 0.2s ease-in-out;
+            align-items: center;
+        }
+        .history-item-name {
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-right: 8px;
+        }
+        .rename-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 16px; /* Pencil emoji is this size */
+            cursor: pointer;
+            padding: 0 5px;
+            line-height: 1;
+            border-radius: 50%;
+            display: none; /* Hidden by default */
+            margin-right: 4px; /* Space between rename and delete */
+        }
+        .delete-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0 5px;
+            line-height: 1;
+            border-radius: 50%;
+            display: none; /* Hidden by default */
+        }
+        .history-item:hover .rename-btn,
+        .history-item:hover .delete-btn {
+            display: inline-block; /* Show on hover */
+        }
+        .history-item:hover {
+            background-color: var(--bg-hover);
+        }
+        .history-item.active {
+            background-color: var(--accent-bg-light);
+            color: var(--accent-secondary);
+            font-weight: 500;
+        }
+        .history-item.active .rename-btn,
+        .history-item.active .delete-btn {
+            color: var(--accent-secondary);
+        }
+        .delete-btn:hover,
+        .rename-btn:hover {
+            background-color: var(--bg-hover-subtle);
+        }
+        .rename-input {
+            flex-grow: 1;
+            border: 1px solid var(--accent-primary);
+            border-radius: 3px;
+            padding: 5px 6px;
+            font-family: inherit;
+            font-size: 14px;
+            background-color: var(--bg-input);
+            color: var(--text-primary);
+        }
+        .chat-container {
+            flex-grow: 1; /* Take remaining space */
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-secondary);
+        }
+        .chat-header {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            padding: 15px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .chat-messages {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .message {
+            padding: 10px 15px;
+            border-radius: 20px;
+            max-width: 80%;
+            line-height: 1.4;
+            white-space: pre-wrap; /* Handles newlines from textContent */
+        }
+        .user-message {
+            background: var(--user-msg-bg);
+            color: var(--text-on-accent);
+            align-self: flex-end;
+        }
+        .bot-message {
+            background-color: var(--bot-msg-bg);
+            color: var(--text-primary);
+            position: relative; /* For positioning the copy button */
+            align-self: flex-start;
+        }
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            align-self: flex-start;
+            padding: 10px 15px;
+        }
+        .typing-indicator span {
+            height: 8px;
+            width: 8px;
+            background-color: var(--text-disabled);
+            border-radius: 50%;
+            display: inline-block;
+            margin: 0 2px;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(3) { animation-delay: -0.16s; }
+        @keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
+        .chat-input {
+            display: flex;
+            padding: 15px;
+            border-top: 1px solid var(--border-color);
+            background-color: var(--bg-secondary);
+            align-items: center;
+        }
+        .chat-input input {
+            flex-grow: 1;
+            border: none;
+            background-color: var(--bg-input);
+            border-radius: 20px;
+            padding: 12px 18px;
+            font-size: 16px;
+            outline: none;
+            color: var(--text-primary);
+        }
+        .chat-input button {
+            background-color: var(--accent-primary);
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            margin-left: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+        .chat-input button svg {
+            width: 20px;
+            height: 20px;
+            fill: var(--text-on-accent);
+        }
+        .chat-input button:hover { background-color: var(--accent-secondary); }
+        .buttons-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 5px;
+            align-self: flex-start;
+        }
+        .message-button {
+            background-color: var(--accent-bg-light);
+            color: var(--accent-secondary);
+            border: 1px solid var(--accent-border-light);
+            padding: 8px 12px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .message-button:hover {
+            background-color: var(--accent-hover-light);
+            color: var(--accent-text-light);
+        }
+        .message-button:disabled {
+            background-color: var(--bg-hover);
+            color: var(--text-disabled);
+            border-color: var(--border-color-disabled);
+            cursor: not-allowed;
+        }
+        /* --- Modal Styles --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--modal-overlay-bg);
+            display: none; /* Hidden by default */
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: var(--bg-secondary);
+            padding: 20px 30px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px var(--shadow-color);
+            text-align: center;
+            width: 300px;
+            color: var(--text-primary);
+        }
+        .modal-buttons {
+            margin-top: 20px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .modal-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .modal-btn-cancel {
+            background-color: var(--bg-hover);
+            color: var(--text-primary);
+        }
+        .modal-btn-confirm {
+            background-color: var(--danger-bg);
+            color: var(--text-on-accent);
+        }
+        /* --- Theme Switcher --- */
+        .theme-switcher {
+            margin-top: auto; /* Pushes it to the bottom */
+            padding-top: 10px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 22px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--bg-hover);
+            transition: .4s;
+            border-radius: 22px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: var(--bg-secondary);
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: var(--accent-primary);
+        }
+        input:checked + .slider:before {
+            transform: translateX(18px);
+        }
+        /* --- Animation for new messages --- */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .new-message-animation {
+            animation: fadeInUp 0.3s ease-out forwards;
+        }
+        /* --- Button Spinner --- */
+        #new-chat-btn .spinner {
+            display: none;
+            border: 2px solid var(--bg-hover);
+            border-left-color: var(--accent-primary);
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            animation: spin 1s linear infinite;
+        }
+        #new-chat-btn.loading .spinner {
+            display: block;
+        }
+        #new-chat-btn.loading .btn-content {
+            display: none;
+        }
+        #new-chat-btn:disabled {
+            cursor: not-allowed;
+            background-color: var(--bg-hover);
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        /* --- Copy Button Styles --- */
+        .copy-btn {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            background-color: transparent;
+            border: none;
+            border-radius: 5px;
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            display: none; /* Hidden by default */
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            transition: background-color 0.2s, opacity 0.2s;
+            padding: 4px;
+        }
+        .bot-message:hover .copy-btn {
+            display: flex; /* Show on hover */
+        }
+        .copy-btn:hover {
+            background-color: var(--bg-hover-subtle);
+        }
+        .copy-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+        .bot-message > span {
+            /* Add padding to the right to prevent text from overlapping with the button */
+            padding-right: 25px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="history-sidebar">
+        <div class="history-header">
+            <button id="new-chat-btn" title="Start a new chat">
+                <span class="btn-content">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 2a.5.5 0 0 1 .5.5v5h5a.5.5 0 0 1 0 1h-5v5a.5.5 0 0 1-1 0v-5h-5a.5.5 0 0 1 0-1h5v-5A.5.5 0 0 1 8 2Z"/></svg>
+                    <span>New Chat</span>
+                </span>
+                <span class="spinner"></span>
+            </button>
+        </div>
+        <ul id="history-list">
+            <!-- History items will be populated here -->
+        </ul>
+        <div class="theme-switcher">
+            <span>Dark Mode</span>
+            <label class="switch">
+                <input type="checkbox" id="theme-toggle">
+                <span class="slider"></span>
+            </label>
+        </div>
+    </div>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2>Airline Booking Bot</h2>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+            <!-- Messages will be appended here by JavaScript -->
+        </div>
+        <div class="chat-input">
+            <input type="text" id="user-input" placeholder="Type a message...">
+            <button id="send-btn" title="Send message">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z"/></svg>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div id="confirmation-modal" class="modal-overlay">
+    <div class="modal-content">
+        <p>Are you sure you want to delete this chat?</p>
+        <div class="modal-buttons">
+            <button id="cancel-delete-btn" class="modal-btn modal-btn-cancel">Cancel</button>
+            <button id="confirm-delete-btn" class="modal-btn modal-btn-confirm">Delete</button>
+        </div>
+    </div>
+</div>
+
+<script src="script.js" defer></script>
+</body>
+</html>

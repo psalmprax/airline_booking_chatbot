@@ -1,0 +1,276 @@
+version: "3.1"
+
+stories:
+- story: User provides all info for flight booking
+  steps:
+  - intent: book_flight
+    entities:
+      - departure_city: "San Francisco"
+      - destination_city: "Tokyo"
+      - departure_date: "tomorrow"
+      - number_of_passengers: 2
+  - action: flight_booking_form
+  - active_loop: null
+  - action: action_search_flights # Search for flights with the collected info
+
+- story: Flexible search path
+  steps:
+  - intent: flexible_search
+  - action: action_flexible_search
+
+- story: Interactive flight booking
+  steps:
+  - intent: book_flight
+    entities:
+    - destination_city: "Berlin"
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - slot_was_set:
+    - requested_slot: departure_city
+  - intent: inform
+    entities:
+    - departure_city: "Paris"
+  - action: flight_booking_form
+  - active_loop: null
+  - action: action_search_flights
+
+- story: Select flight and confirm
+  steps:
+  - action: action_search_flights # This story picks up after a search
+  - intent: select_flight
+    entities:
+    - flight_id: "FH456"
+  - action: action_set_flight_and_ask_confirm
+  - intent: confirm_booking
+  - action: action_confirm_booking
+
+- story: User changes mind after seeing flight options
+  steps:
+  - intent: book_flight # A previous booking flow
+    entities:
+    - departure_city: "New York"
+    - destination_city: "London"
+  - action: flight_booking_form
+  - active_loop: null
+  - action: action_search_flights # Bot shows flights for NY to London
+  # The bot asks for the departure date, but the user changes their mind about the departure city
+  - slot_was_set:
+      - requested_slot: destination_city
+  - intent: inform
+    entities:
+      - destination_city: "Berlin"
+  - action: flight_booking_form
+  - slot_was_set:
+      - requested_slot: departure_date
+  - intent: inform
+    entities:
+      - departure_city: "London"
+  - action: flight_booking_form
+
+- story: Check flight status
+  steps:
+  - intent: check_flight_status
+    entities:
+    - flight_id: "AA123"
+  - action: action_flight_status
+
+- story: Store user preference
+  steps:
+  - intent: store_preference
+    entities:
+    - seat_preference: "window"
+  - action: action_store_preference
+
+- story: User changes mind during flight booking form
+  steps:
+  # The conversation starts and the form is activated
+  - intent: book_flight
+    entities:
+      - departure_city: "Paris"
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  # The bot asks for the destination city, and the user provides it
+  - slot_was_set:
+      - requested_slot: destination_city
+  - intent: inform
+    entities:
+      - destination_city: "Berlin"
+  - action: flight_booking_form
+  # The bot asks for the departure date, but the user changes their mind about the departure city
+  - slot_was_set:
+      - requested_slot: departure_date
+  - intent: inform
+    entities:
+      - departure_city: "London"
+  # The form action runs, updates the slot, and continues by asking for the date again
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+
+- story: Greet and book flight in one turn
+  steps:
+  - user: "Hi, I'd like to book a flight"
+    intents:
+      - greet
+      - book_flight
+  - action: utter_greet
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+
+- story: User asks for help during flight booking
+  steps:
+  - intent: book_flight
+    entities:
+    - departure_city: "London"
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - intent: help
+  - action: utter_help
+  - action: flight_booking_form # The form resumes and re-asks for the next slot
+  - active_loop: flight_booking_form
+
+- story: User says goodbye during flight booking
+  steps:
+  - intent: book_flight
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - intent: goodbye
+  - action: action_deactivate_loop
+  - active_loop: null
+  - action: utter_goodbye
+
+- story: User asks for help and provides info during flight booking
+  steps:
+  - intent: book_flight
+    entities:
+    - departure_city: "London"
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - intents:
+    - help
+    - inform
+    entities:
+    - destination_city: "Paris"
+  - action: utter_help
+  - action: flight_booking_form # The form processes the inform intent and continues
+  - active_loop: flight_booking_form
+
+- story: User asks out-of-scope question during flight booking
+  steps:
+  - intent: book_flight
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - intent: nlu_fallback
+  - action: utter_out_of_scope
+  - action: flight_booking_form # The form resumes and re-asks for the next slot
+  - active_loop: flight_booking_form
+
+- story: User affirms unexpectedly during flight booking
+  steps:
+  - intent: book_flight
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - intent: affirm
+  - action: utter_please_rephrase
+  - action: flight_booking_form # The form resumes and re-asks for the next slot
+  - active_loop: flight_booking_form
+
+- story: User denies unexpectedly during flight booking
+  steps:
+  - intent: book_flight
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - intent: deny
+  - action: utter_please_rephrase
+  - action: flight_booking_form # The form resumes and re-asks for the next slot
+  - active_loop: flight_booking_form
+
+- story: User challenges bot during flight booking
+  steps:
+  - intent: book_flight
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - intent: bot_challenge
+  - action: utter_handle_challenge
+  - action: flight_booking_form # The form resumes and re-asks for the next slot
+  - active_loop: flight_booking_form
+
+- story: User deletes preference during flight booking
+  steps:
+  - intent: book_flight
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - intent: delete_preference
+  - action: action_delete_preference
+  - action: flight_booking_form # The form resumes and re-asks for the next slot
+  - active_loop: flight_booking_form
+
+- story: User provides frequent flyer number in first turn
+  steps:
+  - intent: book_flight
+    entities:
+    - departure_city: "New York"
+    - destination_city: "London"
+    - frequent_flyer_number: "AA12345678"
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+
+- story: User provides preferred airline in first turn
+  steps:
+  - intent: book_flight
+    entities:
+    - departure_city: "New York"
+    - destination_city: "London"
+    - airline: "AwesomeAirlines"
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+
+- story: User books a round trip flight
+  steps:
+  - intent: book_flight
+    entities:
+    - booking_trip_type: "round trip"
+    - departure_city: "London"
+    - destination_city: "Paris"
+    - departure_date: "next week"
+    - return_date: "in two weeks"
+    - number_of_passengers: 1
+  - action: flight_booking_form
+  - active_loop: null
+  - action: action_search_flights
+
+- story: User books a multi-city trip
+  steps:
+  - intent: book_flight
+    entities:
+    - booking_trip_type: "multi-city"
+    - departure_city: "London"
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - intent: inform
+    entities:
+    - destination_city: "Paris" # This will be extracted into next_destination
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - intent: affirm # User wants to add another city
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - intent: inform
+    entities:
+    - destination_city: "Berlin"
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+
+- story: User provides airline and frequent flyer number in first turn
+  steps:
+  - intent: book_flight
+    entities:
+    - departure_city: "New York"
+    - destination_city: "London"
+    - airline: "AwesomeAirlines"
+    - frequent_flyer_number: "AA12345678"
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - intent: deny # User is done adding cities
+  - action: flight_booking_form # Form continues to ask for date, etc.
+  - active_loop: null
+  - action: action_search_flights

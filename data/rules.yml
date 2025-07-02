@@ -1,0 +1,115 @@
+version: "3.1"
+
+rules:
+- rule: Activate flight booking form
+  steps:
+  - intent: book_flight
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+
+- rule: Handle storing a preference
+  steps:
+  - intent: store_preference
+  - action: action_store_preference
+
+- rule: Handle user selecting a flight
+  steps:
+  - intent: select_flight
+  - action: action_set_flight_and_ask_confirm
+
+- rule: Handle user confirming the booking after selection
+  steps:
+  - intent: confirm_booking
+  - action: action_confirm_booking
+
+- rule: Handle flexible search
+  steps:
+  - intent: flexible_search
+  - action: action_flexible_search
+
+- rule: Handle user denying booking details
+  steps:
+  - intent: deny_details
+  - action: utter_ask_for_correction
+
+- rule: Handle user providing a correction
+  steps:
+  - intent: correct_info
+  - action: action_handle_correction
+
+- rule: Handle flight status check
+  steps:
+  - intent: check_flight_status
+  - action: action_flight_status
+
+- rule: Stop the form
+  condition:
+  - active_loop: flight_booking_form
+  steps:
+  - intent: stop
+  - action: action_ask_confirm_cancellation
+
+- rule: User confirms cancellation
+  condition:
+  - active_loop: flight_booking_form
+  - slot_was_set:
+    - cancellation_pending: true
+  steps:
+  - intent: confirm_cancellation
+  - action: action_cancel_booking
+  - active_loop: null
+
+- rule: User denies cancellation
+  condition:
+  - active_loop: flight_booking_form
+  - slot_was_set:
+    - cancellation_pending: true
+  steps:
+  - intent: deny_cancellation
+  - action: action_resume_booking
+  - action: flight_booking_form # Re-ask the last question
+
+- rule: Handle stop outside of a form
+  condition:
+  - active_loop: null
+  steps:
+  - intent: stop
+  - action: utter_anything_else
+
+- rule: Say goodbye anytime the user says goodbye
+  steps:
+  - intent: goodbye
+  - action: utter_goodbye
+
+- rule: Handle user asking for help
+  steps:
+  - intent: help
+  - action: utter_help
+
+- rule: Handle out-of-scope requests
+  condition:
+  - active_loop: null
+  steps:
+  - intent: nlu_fallback
+  - action: utter_out_of_scope
+
+- rule: Handle user challenging the bot
+  steps:
+  - intent: bot_challenge
+  - action: utter_handle_challenge
+
+- rule: Handle deleting a preference
+  steps:
+  - intent: delete_preference
+  - action: action_delete_preference
+
+- rule: Handle airport clarification after form was paused
+  condition:
+  # This rule only applies when the form is active and waiting for clarification
+  - active_loop: flight_booking_form
+  - slot_was_set:
+    - ambiguous_city_name: true
+  steps:
+  - intent: select_airport
+  - action: action_set_airport_from_clarification
+  - action: flight_booking_form # Immediately resume the form with the clarified info

@@ -1,0 +1,52 @@
+name: Rasa CI/CD Pipeline
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  validate-data:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+    - name: Install Rasa
+      run: pip install rasa==3.6.13
+    - name: Validate Rasa data
+      run: rasa data validate
+
+  test-actions:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+    - name: Install dependencies
+      run: |
+        pip install -r actions/requirements.txt
+        pip install -r actions/requirements-dev.txt
+    - name: Run action tests
+      run: |
+        export PYTHONPATH=.
+        pytest
+
+  train-and-test:
+    runs-on: ubuntu-latest
+    needs: [validate-data, test-actions] # Run only if previous jobs succeed
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+    - name: Install Rasa
+      run: pip install rasa==3.6.13
+    - name: Train and test Rasa model
+      run: rasa train && rasa test
