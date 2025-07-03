@@ -1,6 +1,7 @@
-version: '3.8'
+version: "3.9"
 
 services:
+  # This service runs the Rasa chatbot
   rasa:
     build:
       context: .
@@ -18,11 +19,17 @@ services:
         condition: service_started
 
   action_server:
-    build: ./actions
+    build:
+      context: .
+      dockerfile: actions/Dockerfile
     ports:
       - "5055:5055"
     env_file:
       - .env
+    command: rasa run actions
+    depends_on:
+      db:
+        condition: service_healthy
 
   db:
     image: postgres:14.1

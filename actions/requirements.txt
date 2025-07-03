@@ -1,3 +1,11 @@
-psycopg2-binary
-requests
-dateparser
+rasa-sdk==3.6.2
+psycopg2-binary==2.9.9
+requests==2.31.0
+dateparser==1.2.0
+cachetools==5.3.2
+redis==5.0.1
+alembic==1.13.1
+SQLAlchemy==2.0.25
+python-dotenv==1.0.1
+# For fuzzy string matching to handle typos
+thefuzz[speedup]==0.22.1

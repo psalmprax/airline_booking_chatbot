@@ -1,4 +1,4 @@
-version: '3.8'
+version: '3.9'
 
 # This file contains development-specific overrides.
 # It is automatically merged with docker-compose.yml when you run `docker-compose up`.

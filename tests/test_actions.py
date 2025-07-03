@@ -6,7 +6,7 @@ from rasa_sdk import Tracker
 from rasa_sdk.executor import CollectingDispatcher
 from rasa_sdk.events import SlotSet, ActiveLoop, AllSlotsReset, FollowupAction
 
-from actions.actions import ValidateFlightBookingForm, ActionSearchFlights, ActionSetAirportFromClarification, ActionStorePreference, ActionDeletePreference, ActionFlexibleSearch, ActionFlightStatus, ActionSetFlightAndAskConfirm, ActionConfirmBooking, ActionCancelBooking, ActionAskConfirmCancellation, ActionResumeBooking, ActionReviewAndConfirm, ActionHandleCorrection
+from actions.actions import ValidateFlightBookingForm, ActionSearchFlights, ActionSetAirportFromClarification, ActionStorePreference, ActionDeletePreference, ActionFlexibleSearch, ActionFlightStatus, ActionSetFlightAndAskConfirm, ActionConfirmBooking, ActionCancelBooking, ActionAskConfirmCancellation, ActionResumeBooking, ActionReviewAndConfirm, ActionHandleCorrection, ValidateCarBookingForm, ActionHandleCitySuggestion
 from actions.api_client import BaseFlightApiClient
 from actions.db_client import DatabaseClient
 
@@ -197,7 +197,7 @@ def test_action_store_preference_success(mocker):
     action.run(dispatcher, tracker, {})
 
     # Assert
-    mock_db_client.store_user_preference.assert_called_once_with("test_user_123", "window")
+    mock_db_client.store_user_preference.assert_called_once_with("test_user_123", "seat_preference", "window")
     assert "I've saved your preference" in dispatcher.messages[0]["text"]
 
 
@@ -225,7 +225,7 @@ def test_action_store_preference_db_error(mocker):
     action.run(dispatcher, tracker, {})
 
     # Assert
-    mock_db_client.store_user_preference.assert_called_once_with("test_user_456", "aisle")
+    mock_db_client.store_user_preference.assert_called_once_with("test_user_456", "seat_preference", "aisle")
     assert "couldn't save your preference due to a technical issue" in dispatcher.messages[0]["text"]
 
 
@@ -382,60 +382,133 @@ def test_validate_city_invalid(flight_booking_validator, mock_db_client):
     assert len(dispatcher.messages) == 1
     assert "I don't recognize 'Atlantis'" in dispatcher.messages[0]["text"]
 
-def test_action_search_flights_success(mock_api_client):
-    """Tests ActionSearchFlights for a successful search."""
+@pytest.mark.parametrize("api_return_value, expected_message, expect_buttons", [
+    # Success case with results
+    (
+        [{"airline": "TestAir", "time": "10:00", "price": 500, "flight_id": "TA100"}],
+        "Here are some flights I found:",
+        True
+    ),
+    # No results case
+    (
+        [],
+        "I'm sorry, I couldn't find any flights for that route and date.",
+        False
+    ),
+    # API failure case
+    (
+        None,
+        "utter_api_failure",
+        False
+    ),
+])
+def test_action_search_flights_api_responses(mock_api_client, api_return_value, expected_message, expect_buttons):
+    """Tests how ActionSearchFlights handles various API responses."""
+    # Arrange
     action = ActionSearchFlights()
     dispatcher = CollectingDispatcher()
     tracker = Tracker.from_dict({
         "slots": {
+            "departure_city": "New York", "destination_city": "London",
             "departure_city_iata": "JFK", "destination_city_iata": "LHR",
-            "departure_date": "2025-02-10", "number_of_passengers": 1
+            "departure_date": "2025-02-10", "number_of_passengers": 1,
         }
     })
-    mock_api_client.search.return_value = [
-        {"airline": "TestAir", "time": "10:00", "price": 500, "flight_id": "TA100"}
-    ]
+    mock_api_client.search.return_value = api_return_value
 
+    # Act
     action.run(dispatcher, tracker, {})
 
+    # Assert
     mock_api_client.search.assert_called_once()
-    assert "Here are some flights I found:" in dispatcher.messages[1]["text"]
-    assert len(dispatcher.messages[1]["buttons"]) == 1
+    final_message = dispatcher.messages[1] # The first message is the "Searching..." one
 
-def test_action_search_flights_no_results(mock_api_client):
-    """Tests ActionSearchFlights when the API returns no results."""
+    if api_return_value is None:
+        assert final_message["response"] == expected_message
+    else:
+        assert expected_message in final_message["text"]
+
+    if expect_buttons:
+        assert "buttons" in final_message and len(final_message["buttons"]) > 0
+    else:
+        assert "buttons" not in final_message or not final_message["buttons"]
+
+def test_action_search_flights_multi_city(mock_api_client):
+    """Tests that multi-city trips are handled as a special case without calling the API."""
+    # Arrange
     action = ActionSearchFlights()
     dispatcher = CollectingDispatcher()
     tracker = Tracker.from_dict({
         "slots": {
-            "departure_city_iata": "JFK", "destination_city_iata": "LHR",
-            "departure_date": "2025-02-10", "number_of_passengers": 1
+            "booking_trip_type": "multi-city",
+            "departure_city": "London",
+            "destinations": ["Paris", "Berlin"],
+            "departure_date": "2025-03-15",
+            "number_of_passengers": 2,
         }
     })
-    mock_api_client.search.return_value = [] # API call succeeded but no flights found
 
+    # Act
     action.run(dispatcher, tracker, {})
 
-    mock_api_client.search.assert_called_once()
-    assert "I'm sorry, I couldn't find any flights" in dispatcher.messages[1]["text"]
+    # Assert
+    mock_api_client.search.assert_not_called()
+    assert len(dispatcher.messages) == 2
+    assert "Searching for a multi-city trip" in dispatcher.messages[0]["text"]
+    assert "London -> Paris -> Berlin" in dispatcher.messages[0]["text"]
+    assert "Multi-city searches are complex" in dispatcher.messages[1]["text"]
 
-def test_action_search_flights_api_failure(mock_api_client):
-    """Tests ActionSearchFlights when the API call fails."""
+def test_action_search_flights_with_seat_preference(mock_api_client, mock_db_client):
+    """Tests that a stored seat preference is retrieved and used in the search."""
+    # Arrange
+    action = ActionSearchFlights()
+    dispatcher = CollectingDispatcher()
+    tracker = Tracker.from_dict({
+        "sender_id": "test_user",
+        "slots": {
+            "departure_city": "New York", "destination_city": "London",
+            "departure_city_iata": "JFK", "destination_city_iata": "LHR",
+            "departure_date": "2025-02-10", "number_of_passengers": 1,
+        }
+    })
+    mock_db_client.pool = True
+    mock_db_client.get_user_preference.return_value = "window"
+    mock_api_client.search.return_value = [{"airline": "TestAir", "time": "10:00", "price": 500, "flight_id": "TA100"}]
+
+    # Act
+    action.run(dispatcher, tracker, {})
+
+    # Assert
+    mock_db_client.get_user_preference.assert_called_once_with("test_user", "seat_preference")
+    assert "I'll keep in mind you prefer a window seat." in dispatcher.messages[0]["text"]
+    call_args, call_kwargs = mock_api_client.search.call_args
+    assert call_kwargs["seat_preference"] == "window"
+
+def test_action_search_flights_round_trip_message(mock_api_client):
+    """Tests the search message construction for a round trip."""
+    # Arrange
     action = ActionSearchFlights()
     dispatcher = CollectingDispatcher()
     tracker = Tracker.from_dict({
         "slots": {
+            "departure_city": "New York", "destination_city": "London",
             "departure_city_iata": "JFK", "destination_city_iata": "LHR",
-            "departure_date": "2025-02-10", "number_of_passengers": 1
+            "departure_date": "2025-02-10", "return_date": "2025-02-20",
+            "number_of_passengers": 2,
         }
     })
-    mock_api_client.search.return_value = None # API call failed
+    mock_api_client.search.return_value = []
 
+    # Act
     action.run(dispatcher, tracker, {})
 
-    mock_api_client.search.assert_called_once()
-    assert dispatcher.messages[1]["response"] == "utter_api_failure"
-
+    # Assert
+    search_message = dispatcher.messages[0]["text"]
+    assert "Searching for round trip flights" in search_message
+    assert "for 2 passenger(s)" in search_message
+    assert "from New York to London" in search_message
+    assert "departing on 2025-02-10" in search_message
+    assert "and returning on 2025-02-20" in search_message
 
 def test_required_slots_no_trip_type(flight_booking_validator):
     """
@@ -547,6 +620,7 @@ def test_required_slots_multi_city_adding_more(flight_booking_validator):
         "add_more_destinations",
         "departure_date",
         "number_of_passengers",
+        "travel_class", # Added new slot
         "preferred_airline",
         "frequent_flyer_number",
     ]
@@ -563,10 +637,33 @@ def test_required_slots_multi_city_done(flight_booking_validator):
         "departure_city",
         "departure_date",
         "number_of_passengers",
+        "travel_class", # Added new slot
         "preferred_airline",
         "frequent_flyer_number",
     ]
     assert required == expected
+
+def test_required_slots_one_way_many_passengers(flight_booking_validator):
+    """Tests that 'travel_class' is required for a one-way trip with > 4 passengers."""
+    tracker = Tracker.from_dict({
+        "slots": {
+            "booking_trip_type": "one-way",
+            "number_of_passengers": 5
+        }
+    })
+    required = flight_booking_validator.required_slots(tracker)
+    assert "travel_class" in required
+
+def test_required_slots_one_way_few_passengers(flight_booking_validator):
+    """Tests that 'travel_class' is NOT required for a one-way trip with <= 4 passengers."""
+    tracker = Tracker.from_dict({
+        "slots": {
+            "booking_trip_type": "one-way",
+            "number_of_passengers": 4
+        }
+    })
+    required = flight_booking_validator.required_slots(tracker)
+    assert "travel_class" not in required
 
 
 def test_validate_preferred_airline_valid(flight_booking_validator):
@@ -805,7 +902,7 @@ def test_action_delete_preference_success(mocker):
     action.run(dispatcher, tracker, {})
 
     # Assert
-    mock_db_client.delete_user_preference.assert_called_once_with("test_user")
+    mock_db_client.delete_user_preference.assert_called_once_with("test_user", "seat_preference")
     assert dispatcher.messages[0]["response"] == "utter_preference_deleted"
 
 
@@ -824,7 +921,7 @@ def test_action_delete_preference_not_found(mocker):
 
     action.run(dispatcher, tracker, {})
 
-    mock_db_client.delete_user_preference.assert_called_once_with("test_user")
+    mock_db_client.delete_user_preference.assert_called_once_with("test_user", "seat_preference")
     assert dispatcher.messages[0]["response"] == "utter_no_preference_to_delete"
     
 def test_action_ask_confirm_cancellation():
@@ -970,6 +1067,82 @@ def test_action_handle_correction_multi_city(mocker):
     assert SlotSet("destinations_iata", ["CDG", "BER"]) in events
     assert FollowupAction("action_review_and_confirm") in events
 
+def test_action_handle_correction_specific_multi_city_destination(mocker):
+    """Tests correcting a specific destination (e.g., the second) of a multi-city trip."""
+    action = ActionHandleCorrection()
+    dispatcher = CollectingDispatcher()
+    tracker = Tracker.from_dict({
+        "slots": {
+            "booking_trip_type": "multi-city",
+            "departure_city": "London",
+            "destinations": ["Paris", "Rome"],
+            "destinations_iata": ["CDG", "FCO"]
+        },
+        "latest_message": {
+            "intent": {"name": "correct_info"},
+            "entities": [
+                {"entity": "ordinal", "value": "second"},
+                {"entity": "city", "value": "Berlin", "role": "destination"}
+            ]
+        }
+    })
+
+    # Mock the validator and its _validate_city helper method
+    mock_validator = mocker.patch('actions.actions.ValidateFlightBookingForm', autospec=True).return_value
+    mock_validator._validate_city.return_value = {
+        "next_destination": "Berlin",
+        "next_destination_iata": "BER"
+    }
+
+    events = action.run(dispatcher, tracker, {})
+
+    # Assert that the second destination (index 1) was changed
+    assert SlotSet("destinations", ["Paris", "Berlin"]) in events
+    assert SlotSet("destinations_iata", ["CDG", "BER"]) in events
+    assert FollowupAction("action_review_and_confirm") in events
+
+def test_validate_travel_class_valid(flight_booking_validator):
+    """Tests that a valid travel class is accepted."""
+    dispatcher = CollectingDispatcher()
+    tracker = Tracker.from_dict({})
+    result = flight_booking_validator.validate_travel_class("economy", dispatcher, tracker, {})
+    assert result == {"travel_class": "economy"}
+    assert "Okay, searching for flights in economy class." in dispatcher.messages[0]["text"]
+
+def test_validate_travel_class_invalid(flight_booking_validator):
+    """Tests that an invalid travel class is rejected."""
+    dispatcher = CollectingDispatcher()
+    tracker = Tracker.from_dict({})
+    result = flight_booking_validator.validate_travel_class("premium economy", dispatcher, tracker, {})
+    assert result == {"travel_class": None}
+    assert "is not a valid travel class" in dispatcher.messages[0]["text"]
+    assert "Please choose from: economy, business, first" in dispatcher.messages[0]["text"]
+
+def test_action_search_flights_with_travel_class(mock_api_client):
+    """Tests ActionSearchFlights passes travel_class to the API client."""
+    action = ActionSearchFlights()
+    dispatcher = CollectingDispatcher()
+    tracker = Tracker.from_dict({
+        "slots": {
+            "departure_city_iata": "JFK", "destination_city_iata": "LHR",
+            "departure_date": "2025-02-10", "number_of_passengers": 1,
+            "travel_class": "business" # New slot value
+        }
+    })
+    mock_api_client.search.return_value = [
+        {"airline": "TestAir", "time": "10:00", "price": 1500, "flight_id": "TA100B"}
+    ]
+
+    action.run(dispatcher, tracker, {})
+
+    mock_api_client.search.assert_called_once_with(
+        departure_city="JFK", destination_city="LHR", departure_date="2025-02-10",
+        return_date=None, passengers=1, preferred_airline=None,
+        frequent_flyer_number=None, seat_preference=None, destinations=None,
+        travel_class="business" # Assert the new slot is passed
+    )
+    assert "Here are some flights I found:" in dispatcher.messages[1]["text"]
+
 def test_action_handle_correction_date(mocker):
     """Tests that correcting a date entity is handled correctly."""
     action = ActionHandleCorrection()
@@ -995,3 +1168,120 @@ def test_action_handle_correction_date(mocker):
     assert SlotSet("departure_date", "2025-03-11") in events
     assert FollowupAction("action_review_and_confirm") in events
     mock_validator.validate_departure_date.assert_called_once()
+
+
+@pytest.fixture
+def car_booking_validator():
+    """Provides a clean instance of the car booking form validator."""
+    validator = ValidateCarBookingForm()
+    # Manually set the domain_slots for testing the categorical slot
+    validator.domain_slots = {
+        "car_type": {
+            "values": ["economy", "compact", "mid-size", "standard", "full-size", "suv", "luxury"]
+        }
+    }
+    return validator
+
+# --- Tests for ValidateCarBookingForm ---
+
+def test_validate_pickup_location(car_booking_validator):
+    """Tests that a valid pickup location is accepted."""
+    dispatcher = CollectingDispatcher()
+    tracker = Tracker.from_dict({})
+    result = car_booking_validator.validate_pickup_location("Los Angeles", dispatcher, tracker, {})
+    assert result == {"pickup_location": "Los Angeles"}
+    assert len(dispatcher.messages) == 0
+    
+def test_validate_pickup_date_future(car_booking_validator, monkeypatch):
+    """Tests that a valid future pickup date is accepted."""
+    dispatcher = CollectingDispatcher()
+    tracker = Tracker.from_dict({})
+
+    class MockDate(datetime.date):
+        @classmethod
+        def today(cls):
+            return cls(2025, 6, 10)
+    monkeypatch.setattr(datetime, 'date', MockDate)
+
+    result = car_booking_validator.validate_pickup_date("June 12th 2025", dispatcher, tracker, {})
+    assert result == {"pickup_date": "2025-06-12"}
+
+def test_validate_pickup_date_past(car_booking_validator, monkeypatch):
+    """Tests that a past pickup date is rejected."""
+    dispatcher = CollectingDispatcher()
+    tracker = Tracker.from_dict({})
+
+    class MockDate(datetime.date):
+        @classmethod
+        def today(cls):
+            return cls(2025, 6, 10)
+    monkeypatch.setattr(datetime, 'date', MockDate)
+
+    result = car_booking_validator.validate_pickup_date("yesterday", dispatcher, tracker, {})
+    assert result == {"pickup_date": None}
+    assert "You can't rent a car in the past!" in dispatcher.messages[0]["text"]
+
+def test_validate_dropoff_date_valid(car_booking_validator):
+    """Tests that a valid dropoff date is accepted."""
+    dispatcher = CollectingDispatcher()
+    tracker = Tracker.from_dict({"slots": {"pickup_date": "2025-06-12"}})
+    result = car_booking_validator.validate_dropoff_date("June 15th 2025", dispatcher, tracker, {})
+    assert result == {"dropoff_date": "2025-06-15"}
+
+def test_validate_dropoff_date_before_pickup(car_booking_validator):
+    """Tests that a dropoff date before the pickup date is rejected."""
+    dispatcher = CollectingDispatcher()
+    tracker = Tracker.from_dict({"slots": {"pickup_date": "2025-06-12"}})
+    result = car_booking_validator.validate_dropoff_date("June 10th 2025", dispatcher, tracker, {})
+    assert result == {"dropoff_date": None}
+    assert "The drop-off date must be after the pickup date." in dispatcher.messages[0]["text"]
+
+def test_validate_pickup_location_typo(car_booking_validator, mock_db_client_car):
+    """Tests that a pickup location with a typo is corrected."""
+    dispatcher = CollectingDispatcher()
+    tracker = Tracker.from_dict({})
+    mock_db_client_car.get_all_city_names.return_value = ["Los Angeles", "New York"]
+
+    result = car_booking_validator.validate_pickup_location("Los Angles", dispatcher, tracker, {})
+
+    assert result == {"pickup_location": None, "suggested_city": "Los Angeles", "ambiguous_city_slot": "pickup_location"}
+    assert len(dispatcher.messages) == 1
+    assert "I couldn't find 'Los Angles'. Did you mean Los Angeles?" in dispatcher.messages[0]["text"]
+    assert dispatcher.messages[0]["buttons"][0]["payload"] == "/affirm"
+    assert dispatcher.messages[0]["buttons"][1]["payload"] == "/deny"
+
+# Rest of ValidateCarBookingForm tests...
+
+
+@pytest.mark.parametrize("user_input, expected_value", [
+    ("suv", "suv"),
+    ("an suv please", "suv"),
+    ("I want a mid-size car", "mid-size"),
+    ("luxury", "luxury"),
+])
+def test_validate_car_type_valid(car_booking_validator, user_input, expected_value):
+    """Tests that various valid car types are accepted and normalized."""
+    dispatcher = CollectingDispatcher()
+    tracker = Tracker.from_dict({})
+    result = car_booking_validator.validate_car_type(user_input, dispatcher, tracker, {})
+    assert result == {"car_type": expected_value}
+
+def test_validate_car_type_invalid(car_booking_validator):
+    """Tests that an invalid car type is rejected."""
+    dispatcher = CollectingDispatcher()
+    tracker = Tracker.from_dict({})
+    result = car_booking_validator.validate_car_type("a minivan", dispatcher, tracker, {})
+    assert result == {"car_type": None}
+    assert "is not a valid car type" in dispatcher.messages[0]["text"]
+    assert "economy, compact, mid-size" in dispatcher.messages[0]["text"]
+
+def test_validate_pickup_location_invalid(car_booking_validator, mock_db_client_car):
+    """Tests that an invalid pickup location is rejected."""
+    dispatcher = CollectingDispatcher()
+    tracker = Tracker.from_dict({})
+    mock_db_client_car.get_all_city_names.return_value = ["Los Angeles", "New York"]
+
+    result = car_booking_validator.validate_pickup_location("Atlantis", dispatcher, tracker, {})
+
+    assert result == {"pickup_location": None}
+    assert "I don't recognize 'Atlantis'" in dispatcher.messages[0]["text"]

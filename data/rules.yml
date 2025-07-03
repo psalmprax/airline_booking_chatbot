@@ -1,6 +1,23 @@
 version: "3.1"
 
 rules:
+- rule: Activate car rental form
+  steps:
+  - intent: book_car
+  - action: car_booking_form
+  - active_loop: car_booking_form
+
+- rule: Activate hotel booking form
+  steps:
+  - intent: book_hotel
+  - action: hotel_booking_form
+  - active_loop: hotel_booking_form
+
+- rule: Handle flight offer after hotel booking
+  steps:
+  - intent: offer_flight_to_destination
+  - action: action_offer_flight_to_destination
+
 - rule: Activate flight booking form
   steps:
   - intent: book_flight
@@ -93,6 +110,33 @@ rules:
   - intent: nlu_fallback
   - action: utter_out_of_scope
 
+- rule: Handle out-of-scope requests during flight booking form
+  condition:
+  - active_loop: flight_booking_form
+  steps:
+  - intent: nlu_fallback
+  - action: utter_out_of_scope
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+
+- rule: Handle out-of-scope requests during hotel booking form
+  condition:
+  - active_loop: hotel_booking_form
+  steps:
+  - intent: nlu_fallback
+  - action: utter_out_of_scope
+  - action: hotel_booking_form
+  - active_loop: hotel_booking_form
+
+- rule: Handle out-of-scope requests during car booking form
+  condition:
+  - active_loop: car_booking_form
+  steps:
+  - intent: nlu_fallback
+  - action: utter_out_of_scope
+  - action: car_booking_form
+  - active_loop: car_booking_form
+
 - rule: Handle user challenging the bot
   steps:
   - intent: bot_challenge
@@ -113,3 +157,16 @@ rules:
   - intent: select_airport
   - action: action_set_airport_from_clarification
   - action: flight_booking_form # Immediately resume the form with the clarified info
+
+- rule: Handle user response to city typo suggestion
+  condition:
+  - or:
+    - active_loop: flight_booking_form
+    - active_loop: car_booking_form
+  - slot_was_set:
+    - suggested_city: true
+  steps:
+  - or:
+    - intent: affirm
+    - intent: deny
+  - action: action_handle_city_suggestion

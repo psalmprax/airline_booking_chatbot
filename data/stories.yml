@@ -274,3 +274,51 @@ stories:
   - action: flight_booking_form # Form continues to ask for date, etc.
   - active_loop: null
   - action: action_search_flights
+
+- story: User books a flight with specific travel class
+  steps:
+  - user: "I want to book a one-way flight from London to Paris for next week in business class"
+    intent: book_flight
+    entities:
+    - booking_trip_type: "one-way"
+    - city: "London"
+      role: "departure"
+    - city: "Paris"
+      role: "destination"
+    - departure_date: "next week"
+    - travel_class: "business"
+  - action: flight_booking_form
+  - active_loop: flight_booking_form
+  - slot_was_set:
+    - requested_slot: number_of_passengers
+  - intent: inform
+    entities:
+    - number_of_passengers: 1
+  - action: flight_booking_form
+  - active_loop: null
+  - action: action_search_flights
+
+- story: User books a hotel interactively
+  steps:
+  - user: "I want to book a hotel"
+    intent: book_hotel
+  - action: hotel_booking_form
+  - active_loop: hotel_booking_form
+  - slot_was_set:
+    - requested_slot: hotel_name
+  - user: "in Berlin"
+    intent: inform
+    entities:
+    - hotel_name: "Berlin"
+  - action: hotel_booking_form
+  - active_loop: hotel_booking_form
+  - slot_was_set:
+    - requested_slot: check_in_date
+  - user: "I want to check in tomorrow for 2 guests"
+    intent: inform
+    entities:
+    - check_in_date: "tomorrow"
+    - number_of_guests: "2"
+  - action: hotel_booking_form
+  - active_loop: null
+  - action: action_search_hotels

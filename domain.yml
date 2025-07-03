@@ -4,6 +4,9 @@ intents:
   - greet
   - goodbye
   - book_flight
+  - book_car
+  - book_hotel
+  - offer_flight_to_destination
   - inform
   - flexible_search
   - check_flight_status
@@ -37,6 +40,16 @@ entities:
   - airline
   - frequent_flyer_number
   - selected_iata_code
+  - travel_class
+  - hotel_name
+  - check_in_date
+  - check_out_date
+  - number_of_guests
+  - ordinal
+  - pickup_location
+  - pickup_date
+  - dropoff_date
+  - car_type
 
 slots:
   departure_city:
@@ -57,7 +70,7 @@ slots:
       role: destination
   destination_city_iata:
     type: text
-    influence_conversation: false
+    influence_conversation: false # Already correctly set
     mappings: []
   departure_date:
     type: text
@@ -69,7 +82,7 @@ slots:
     mappings:
     - type: from_entity
       entity: return_date
-  destinations:
+  destinations: # Correctly set
     type: list
     influence_conversation: false
     mappings: [] # This will be filled by custom actions
@@ -89,7 +102,7 @@ slots:
     - type: from_intent
       intent: deny
       value: False
-  destinations_iata:
+  destinations_iata: # Correctly set
     type: list
     mappings: [] # Filled by custom action
   ambiguous_city_name:
@@ -105,17 +118,27 @@ slots:
     mappings:
     - type: from_entity
       entity: selected_iata_code
+  suggested_city:
+    type: text
+    influence_conversation: false
+    mappings: []
   booking_trip_type:
     type: categorical
     values: [one-way, round trip, multi-city]
     mappings:
     - type: from_entity
       entity: booking_trip_type
-  number_of_passengers:
-    type: text
+  number_of_passengers: # Using 'any' allows storing integers directly after validation.
+    type: any
     mappings:
     - type: from_entity
       entity: number_of_passengers
+  travel_class:
+    type: categorical
+    values: [economy, business, first]
+    mappings:
+    - type: from_entity
+      entity: travel_class
   preferred_airline:
     type: text
     mappings:
@@ -136,6 +159,47 @@ slots:
     type: bool
     influence_conversation: false
     mappings: []
+  hotel_name:
+    type: text
+    mappings:
+    - type: from_entity
+      entity: hotel_name
+  check_in_date:
+    type: text
+    mappings:
+    - type: from_entity
+      entity: check_in_date
+  check_out_date:
+    type: text
+    mappings:
+    - type: from_entity
+      entity: check_out_date
+  number_of_guests: # Using 'any' allows storing integers directly after validation.
+    type: any
+    mappings:
+    - type: from_entity
+      entity: number_of_guests
+  pickup_location:
+    type: text
+    mappings:
+    - type: from_entity
+      entity: pickup_location
+  pickup_date:
+    type: text
+    mappings:
+    - type: from_entity
+      entity: pickup_date
+  dropoff_date:
+    type: text
+    mappings:
+    - type: from_entity
+      entity: dropoff_date
+  car_type:
+    type: categorical
+    values: [economy, compact, mid-size, standard, full-size, suv, luxury]
+    mappings:
+    - type: from_entity
+      entity: car_type
 
 responses:
   utter_greet:
@@ -201,11 +265,34 @@ responses:
   - text: "I found multiple airports for {ambiguous_city_name}. Please choose one:"
   utter_api_failure:
   - text: "I'm sorry, I'm having trouble connecting to the flight search service right now. Please try again in a few moments."
+  utter_ask_travel_class:
+  - text: "What travel class would you prefer (e.g., Economy, Business, First)?"
+  utter_ask_hotel_name:
+  - text: "What city or hotel are you interested in?"
+  utter_clarify_city_typo:
+  - text: "I couldn't find '{typed_city}'. Did you mean {suggested_city}?"
+  utter_ask_pickup_location:
+  - text: "Where would you like to pick up the car?"
+  utter_ask_pickup_date:
+  - text: "When would you like to pick it up?"
+  utter_ask_dropoff_date:
+  - text: "And when will you drop it off?"
+  utter_ask_car_type:
+  - text: "What type of car would you like (e.g., economy, SUV, luxury)?"
+  utter_ask_check_in_date:
+  - text: "When would you like to check in?"
+  utter_ask_check_out_date:
+  - text: "And when would you like to check out?"
+  utter_ask_number_of_guests:
+  - text: "How many guests will be staying?"
 
 actions:
   - action_flexible_search
   - action_search_flights
   - validate_flight_booking_form
+  - validate_hotel_booking_form
+  - validate_car_booking_form
+  - action_search_cars
   - action_set_flight_and_ask_confirm
   - action_confirm_booking
   - action_flight_status
@@ -217,7 +304,22 @@ actions:
   - action_handle_correction
   - action_review_and_confirm
   - action_set_airport_from_clarification
+  - action_offer_flight_to_destination
+  - action_handle_city_suggestion
+  - action_search_hotels
 
 forms:
   flight_booking_form:
     required_slots: [] # We will define this dynamically in actions.py
+  hotel_booking_form:
+    required_slots:
+      - hotel_name
+      - check_in_date
+      - check_out_date
+      - number_of_guests
+  car_booking_form:
+    required_slots:
+      - pickup_location
+      - pickup_date
+      - dropoff_date
+      - car_type

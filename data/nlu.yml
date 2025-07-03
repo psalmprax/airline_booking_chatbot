@@ -32,6 +32,24 @@ nlu:
     - I need a flight to [Berlin](city){"role": "destination"} for [three](number_of_passengers) passengers
     - book a flight from [SFO](city){"role": "departure"}
 
+- intent: book_hotel
+  examples: |
+    - I need to book a hotel
+    - find me a hotel in [New York](hotel_name)
+    - can you book a room for me?
+    - I'd like a hotel from [tomorrow](check_in_date) to [next Friday](check_out_date)
+
+- intent: book_car
+  examples: |
+    - I need to rent a car
+    - find me a car rental
+    - I want to book a car in [Los Angeles](pickup_location)
+    - Can I rent an [suv](car_type) from [next Monday](pickup_date) to [next Wednesday](dropoff_date)?
+
+- intent: offer_flight_to_destination
+  examples: |
+    - /offer_flight_to_destination{"city": "Berlin"}
+
 - intent: inform
   examples: |
     - from [Paris](city:departure)
@@ -49,6 +67,17 @@ nlu:
     - I'd like to fly with [AwesomeAirlines](airline)
     - preferably on [United](airline)
     - my frequent flyer number is [AA12345678](frequent_flyer_number)
+    - in [economy](travel_class) class
+    - [business](travel_class)
+    - [first class](travel_class)
+    - I want to fly [economy plus](travel_class)
+    - for [2 guests](number_of_guests)
+    - check in on [Tuesday](check_in_date)
+    - check out on [Friday](check_out_date)
+    - I need to pick up the car in [Los Angeles](pickup_location)
+    - on [Saturday](pickup_date)
+    - I'll drop it off on [Monday](dropoff_date)
+    - I'd like an [SUV](car_type)
 
 - intent: flexible_search
   examples: |
@@ -60,8 +89,8 @@ nlu:
   examples: |
     - please remember I always prefer a [window](seat_preference) seat
     - for future bookings, I like the [aisle](seat_preference)
-    - I'd like to fly [business class](seat_preference)
-    - can you note that I prefer [business class](seat_preference)?
+    - my seat preference is [window](seat_preference)
+    - can you note that I prefer an [aisle](seat_preference) seat?
 
 - intent: delete_preference
   examples: |
@@ -130,6 +159,8 @@ nlu:
     - change the destination to [Tokyo](city:destination)
     - can you change the number of passengers to [2](number_of_passengers)?
     - the return date should be [next month](return_date)
+    - change the [second](ordinal) city to [Berlin](city:destination)
+    - make the [first](ordinal) destination [Paris](city:destination)
 
 - intent: affirm
   examples: |

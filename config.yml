@@ -10,20 +10,26 @@ pipeline:
   - name: CountVectorsFeaturizer
   - name: CountVectorsFeaturizer
     analyzer: char_wb
-    min_ngram: 1
-    max_ngram: 4
+    min_ngram: 1 # Consider increasing min_ngram to 2 or 3 for potentially better performance.
+    max_ngram: 4 # Keep this value or experiment with slightly larger values (e.g., 5 or 6).
   - name: DIETClassifier
-    epochs: 100
+    epochs: 100 # This seems reasonable, but monitor training metrics. Increase if underfitting, decrease if overfitting.
+    constrain_similarities: True # Encourages the model to push dissimilar intent embeddings further apart
   - name: EntitySynonymMapper
   - name: ResponseSelector
-    epochs: 100
+    epochs: 100 # Same as DIETClassifier, adjust based on performance.
+    constrain_similarities: True
   - name: FallbackClassifier
-    threshold: 0.7
-    ambiguity_threshold: 0.1
+    threshold: 0.7 # This is a good starting point, but experiment based on how often the bot misclassifies user input.
+    ambiguity_threshold: 0.1 # If you find the bot is often falling back unnecessarily, consider lowering this slightly.
+    #   If the bot often misunderstands users, consider increasing it.
 
 policies:
   # See https://rasa.com/docs/rasa/policies for more information.
   - name: MemoizationPolicy
+  - name: TEDPolicy
+    max_history: 5
+    epochs: 100
   - name: RulePolicy
   - name: UnexpecTEDIntentPolicy
     max_history: 5

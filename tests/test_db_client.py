@@ -22,10 +22,13 @@ def test_initialize_schema_success(mock_pool, mocker):
 
     client.initialize_schema()
 
-    assert cursor.execute.call_count == 3
+    assert cursor.execute.call_count == 7
+    cursor.execute.assert_any_call(mocker.string_matching("CREATE TABLE IF NOT EXISTS cities"))
     cursor.execute.assert_any_call(mocker.string_matching("CREATE TABLE IF NOT EXISTS user_preferences"))
     cursor.execute.assert_any_call(mocker.string_matching("CREATE TABLE IF NOT EXISTS airports"))
-    cursor.execute.assert_any_call(mocker.string_matching("INSERT INTO airports"))
+    cursor.execute.assert_any_call(mocker.string_matching("CREATE INDEX IF NOT EXISTS"))
+    cursor.execute.assert_any_call(mocker.string_matching("INSERT INTO cities"))
+    cursor.execute.assert_any_call(mocker.string_matching("INSERT INTO airports ON CONFLICT"))
     conn.commit.assert_called_once()
     pool.putconn.assert_called_once_with(conn)
 
@@ -47,12 +50,12 @@ def test_store_user_preference_success(mock_pool, mocker):
     pool, conn, cursor = mock_pool
     client = DatabaseClient(pool)
 
-    result = client.store_user_preference("test_user", "window")
+    result = client.store_user_preference("test_user", "seat_preference", "window")
 
     assert result is True
     cursor.execute.assert_called_once_with(
-        mocker.string_matching("INSERT INTO user_preferences"),
-        ("test_user", "window")
+        mocker.string_matching("INSERT INTO user_preferences .* ON CONFLICT"),
+        ("test_user", "seat_preference", "window")
     )
     conn.commit.assert_called_once()
     pool.putconn.assert_called_once_with(conn)
@@ -64,7 +67,7 @@ def test_store_user_preference_db_error(mock_pool):
     cursor.execute.side_effect = psycopg2.Error("Test DB Error")
     client = DatabaseClient(pool)
 
-    result = client.store_user_preference("test_user", "window")
+    result = client.store_user_preference("test_user", "seat_preference", "window")
 
     assert result is False
     conn.commit.assert_not_called()
@@ -77,12 +80,12 @@ def test_get_user_preference_found(mock_pool):
     cursor.fetchone.return_value = ("window",)
     client = DatabaseClient(pool)
 
-    result = client.get_user_preference("test_user")
+    result = client.get_user_preference("test_user", "seat_preference")
 
     assert result == "window"
     cursor.execute.assert_called_once_with(
-        "SELECT seat_preference FROM user_preferences WHERE user_id = %s",
-        ("test_user",)
+        "SELECT preference_value FROM user_preferences WHERE user_id = %s AND preference_key = %s",
+        ("test_user", "seat_preference")
     )
     pool.putconn.assert_called_once_with(conn)
 
@@ -93,7 +96,7 @@ def test_get_user_preference_not_found(mock_pool):
     cursor.fetchone.return_value = None
     client = DatabaseClient(pool)
 
-    result = client.get_user_preference("test_user")
+    result = client.get_user_preference("test_user", "seat_preference")
 
     assert result is None
     pool.putconn.assert_called_once_with(conn)
@@ -104,12 +107,12 @@ def test_delete_user_preference_success(mock_pool, mocker):
     cursor.rowcount = 1  # Simulate one row was deleted
     client = DatabaseClient(pool)
 
-    result = client.delete_user_preference("test_user")
+    result = client.delete_user_preference("test_user", "seat_preference")
 
     assert result is True
     cursor.execute.assert_called_once_with(
-        "DELETE FROM user_preferences WHERE user_id = %s",
-        ("test_user",)
+        "DELETE FROM user_preferences WHERE user_id = %s AND preference_key = %s",
+        ("test_user", "seat_preference")
     )
     conn.commit.assert_called_once()
     pool.putconn.assert_called_once_with(conn)
@@ -121,7 +124,7 @@ def test_delete_user_preference_user_not_found(mock_pool, mocker):
     cursor.rowcount = 0  # Simulate no rows were deleted
     client = DatabaseClient(pool)
 
-    result = client.delete_user_preference("non_existent_user")
+    result = client.delete_user_preference("non_existent_user", "seat_preference")
 
     assert result is False
     conn.commit.assert_called_once()
@@ -133,7 +136,7 @@ def test_delete_user_preference_db_error(mock_pool):
     cursor.execute.side_effect = psycopg2.Error("Test DB Error")
     client = DatabaseClient(pool)
 
-    result = client.delete_user_preference("test_user")
+    result = client.delete_user_preference("test_user", "seat_preference")
 
     assert result is False
     conn.commit.assert_not_called()
